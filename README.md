@@ -2,6 +2,7 @@
   前端地址：
           https://github.com/Yuyaoqaq/Share.git
 </h1>
+
 # 短图文社交平台技术文档
 ## 一、文档概述
 本文档针对短图文社交平台已实现的核心功能模块（登录注册、短图文发布、内容详情页、Feed 流、个人中心）进行技术实现说明，基于 Vue + Spring Boot 技术栈，结合 Vant UI、Axios、JWT、Vuex 等工具完成开发，部署于阿里云 OSS 服务器并通过 Nginx 反向代理，明确各模块实现逻辑、技术细节及验收标准。

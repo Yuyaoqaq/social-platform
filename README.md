@@ -10,10 +10,10 @@
 ### 2.1 前端技术栈
 
 #### 前端环境要求
-Node.js v14.x/v16.x
-npm 6.x+
-jdk 1.8
-maven 3.6.1
+- Node.js v14.x/v16.x
+- npm 6.x+
+- jdk 1.8
+- maven 3.6.1
 #### 本地运行
 npm run serve
 

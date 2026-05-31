@@ -104,7 +104,7 @@ public class LoginController {
     private void writeRefreshCookie(HttpServletResponse response, String refreshToken) {
         Cookie cookie = new Cookie("refreshToken", refreshToken);
         cookie.setHttpOnly(true);
-        cookie.setPath("/auth/refresh");
+        cookie.setPath("/auth");
         cookie.setMaxAge((int) Jwtconstant.REFRESH_TOKEN_TTL);
         response.addCookie(cookie);
     }

@@ -36,7 +36,7 @@ public class AuthController {
         // 清除客户端 Cookie
         Cookie cookie = new Cookie("refreshToken", "");
         cookie.setHttpOnly(true);
-        cookie.setPath("/auth/refresh");
+        cookie.setPath("/auth");
         cookie.setMaxAge(0);
         response.addCookie(cookie);
         return Result.success();

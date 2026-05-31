@@ -1,16 +1,21 @@
 package com.cy.share.config.webConfig;
 
 import com.cy.share.config.interceptor.MyInterceptor;
+import com.cy.share.common.utils.RsaKeyHolder;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
+@RequiredArgsConstructor
 public class MyInterceptorConfig implements WebMvcConfigurer {
+
+    private final RsaKeyHolder rsaKeyHolder;
+
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
-        // 实现WebMvcConfigurer不会导致静态资源被拦截
-        registry.addInterceptor(new MyInterceptor())
-                .addPathPatterns("/**"); // 拦截所有请求
+        registry.addInterceptor(new MyInterceptor(rsaKeyHolder))
+                .addPathPatterns("/**");
     }
 }

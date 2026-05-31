@@ -12,5 +12,5 @@ public class LoginVo {
     private String avatorurl;
     private String ip;
     private String sign;
-    private String token;
+    private String accessToken;
 }

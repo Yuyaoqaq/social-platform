@@ -1,70 +1,91 @@
 package com.cy.share.controller;
 
-
-import com.aliyun.oss.OSS;
-import com.aliyun.oss.common.utils.BinaryUtil;
-import com.aliyun.oss.model.MatchMode;
-import com.aliyun.oss.model.PolicyConditions;
+import com.aliyuncs.IAcsClient;
+import com.aliyuncs.sts.model.v20150401.AssumeRoleRequest;
+import com.aliyuncs.sts.model.v20150401.AssumeRoleResponse;
 import com.cy.share.common.annotation.UnInterception;
+import com.cy.share.common.constant.ResultCode;
+import com.cy.share.common.utils.JwtResult;
+import com.cy.share.common.utils.JwtUtil;
 import com.cy.share.common.utils.Result;
+import com.cy.share.common.utils.RsaKeyHolder;
+import jakarta.annotation.Resource;
+import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import javax.annotation.Resource;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 @RestController
 @RequestMapping("/oss")
+@RequiredArgsConstructor
 public class OssController {
-@Resource
-OSS ossClient;
-@Value("${alibaba.cloud.oss.endpoint}")
-private String endpoint;
-@Value("${alibaba.cloud.oss.bucket}")
-private String bucket;
-@Value("${alibaba.cloud.access-key}")
-private String accessId;
 
-@UnInterception
-@RequestMapping("/policy")
-public Result policy() {
-    String host = "https://" + bucket + "." + endpoint; // host的格式为 bucketname.endpoint
-    // callbackUrl为 上传回调服务器的URL，请将下面的IP和Port配置为您自己的真实信息。
-    // String callbackUrl = "http://88.88.88.88:8888";
-    String format = new SimpleDateFormat("yyyy-MM-dd").format(new Date());
-    String dir = format + "/"; // 用户上传文件时指定的前缀。
+    @Resource
+    IAcsClient stsClient;
 
-    Map<String, String> respMap = null;
-    try {
-        long expireTime = 30;
-        long expireEndTime = System.currentTimeMillis() + expireTime * 1000;
-        Date expiration = new Date(expireEndTime);
-        PolicyConditions policyConds = new PolicyConditions();
-        policyConds.addConditionItem(PolicyConditions.COND_CONTENT_LENGTH_RANGE, 0, 1048576000);
-        policyConds.addConditionItem(MatchMode.StartWith, PolicyConditions.COND_KEY, dir);
+    private final RsaKeyHolder rsaKeyHolder;
 
-        String postPolicy = ossClient.generatePostPolicy(expiration, policyConds);
-        byte[] binaryData = postPolicy.getBytes("utf-8");
-        String encodedPolicy = BinaryUtil.toBase64String(binaryData);
-        String postSignature = ossClient.calculatePostSignature(postPolicy);
+    @Value("${alibaba.cloud.oss.endpoint}")
+    private String endpoint;
 
-        respMap = new LinkedHashMap<String, String>();
-        respMap.put("accessid", accessId);
-        respMap.put("policy", encodedPolicy);
-        respMap.put("signature", postSignature);
-        respMap.put("dir", dir);
-        respMap.put("host", host);
-        respMap.put("expire", String.valueOf(expireEndTime / 1000));
-        // respMap.put("expire", formatISO8601Date(expiration));
-    } catch (Exception e) {
-        // Assert.fail(e.getMessage());
-        System.out.println(e.getMessage());
-    }
-    return Result.success(respMap);
+    @Value("${alibaba.cloud.oss.bucket}")
+    private String bucket;
+
+    @Value("${alibaba.cloud.sts.role-arn}")
+    private String roleArn;
+
+    @GetMapping("/sts")
+    @UnInterception
+    public Result sts(HttpServletRequest request, @RequestParam(name = "phone", required = false) String phone) {
+        String authHeader = request.getHeader("Authorization");
+        String token = (authHeader != null && authHeader.startsWith("Bearer "))
+                ? authHeader.substring(7) : null;
+        JwtResult jwtResult = (token != null)
+                ? JwtUtil.validateAccessToken(token, rsaKeyHolder.getPublicKey())
+                : new JwtResult();
+
+        String dirId;
+        if (jwtResult.isSuccess()) {
+            dirId = jwtResult.getClaims().getSubject();
+        } else if (phone != null && !phone.isEmpty()) {
+            dirId = phone;
+        } else {
+            return Result.fail(ResultCode.UNAUTHORIZED, "请先登录或提供手机号");
+        }
+
+        String policy = String.format(
+            "{\"Version\":\"1\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":[\"oss:PutObject\"],\"Resource\":[\"acs:oss:*:*:%s/uploads/%s/*\"]}]}",
+            bucket, dirId
+        );
+
+        try {
+            AssumeRoleRequest assumeRoleReq = new AssumeRoleRequest();
+            assumeRoleReq.setRoleArn(roleArn);
+            assumeRoleReq.setRoleSessionName("upload-" + dirId);
+            assumeRoleReq.setDurationSeconds(3600L);
+            assumeRoleReq.setPolicy(policy);
+
+            AssumeRoleResponse assumeRoleResp = stsClient.getAcsResponse(assumeRoleReq);
+            AssumeRoleResponse.Credentials credentials = assumeRoleResp.getCredentials();
+
+            Map<String, String> result = new LinkedHashMap<>();
+            result.put("accessKeyId", credentials.getAccessKeyId());
+            result.put("accessKeySecret", credentials.getAccessKeySecret());
+            result.put("securityToken", credentials.getSecurityToken());
+            result.put("expiration", credentials.getExpiration());
+            result.put("bucket", bucket);
+            result.put("endpoint", endpoint);
+            result.put("dir", "uploads/" + dirId + "/");
+
+            return Result.success(result);
+        } catch (Exception e) {
+            return Result.fail(ResultCode.INTERNAL_SERVER_ERROR, "获取STS凭证失败: " + e.getMessage());
+        }
     }
 }
-

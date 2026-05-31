@@ -9,6 +9,7 @@ import com.cy.share.common.utils.Result;
 import com.cy.share.common.utils.RsaKeyHolder;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -24,6 +25,22 @@ public class AuthController {
 
     private final RsaKeyHolder rsaKeyHolder;
     private final StringRedisTemplate redisTemplate;
+
+    @UnInterception
+    @PostMapping("/logout")
+    public Result logout(HttpServletRequest request, HttpServletResponse response) {
+        String refreshToken = extractRefreshCookie(request);
+        if (refreshToken != null) {
+            redisTemplate.delete(RedisConstant.REFRESH_TOKEN_PREFIX + refreshToken);
+        }
+        // 清除客户端 Cookie
+        Cookie cookie = new Cookie("refreshToken", "");
+        cookie.setHttpOnly(true);
+        cookie.setPath("/auth/refresh");
+        cookie.setMaxAge(0);
+        response.addCookie(cookie);
+        return Result.success();
+    }
 
     @UnInterception
     @PostMapping("/refresh")

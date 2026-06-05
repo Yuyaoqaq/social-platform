@@ -1,9 +1,0 @@
-2025-12-02 18:49:54,853 DEBUG [http-nio-9000-exec-2] [com.cy.share.mapper.UserMapper.selectOne]:137 - ==>  Preparing: SELECT id,name,pwd,phone,avatorurl,sign,ip,version,deleted FROM user WHERE deleted=1 AND (name = ? AND pwd = ?)
-2025-12-02 18:49:54,899 DEBUG [http-nio-9000-exec-2] [com.cy.share.mapper.UserMapper.selectOne]:137 - ==> Parameters: cyyy(String), 123456(String)
-2025-12-02 18:49:54,928 DEBUG [http-nio-9000-exec-2] [com.cy.share.mapper.UserMapper.selectOne]:137 - <==      Total: 0
-2025-12-02 18:50:44,584 DEBUG [http-nio-9000-exec-4] [com.cy.share.mapper.UserMapper.selectOne]:137 - ==>  Preparing: SELECT id,name,pwd,phone,avatorurl,sign,ip,version,deleted FROM user WHERE deleted=1 AND (name = ? AND pwd = ?)
-2025-12-02 18:50:44,588 DEBUG [http-nio-9000-exec-4] [com.cy.share.mapper.UserMapper.selectOne]:137 - ==> Parameters: cyyy(String), 123456(String)
-2025-12-02 18:50:44,594 DEBUG [http-nio-9000-exec-4] [com.cy.share.mapper.UserMapper.selectOne]:137 - <==      Total: 1
-2025-12-02 18:50:54,625 DEBUG [http-nio-9000-exec-6] [com.cy.share.mapper.UserMapper.selectOne]:137 - ==>  Preparing: SELECT id,name,pwd,phone,avatorurl,sign,ip,version,deleted FROM user WHERE deleted=1 AND (name = ? AND pwd = ?)
-2025-12-02 18:50:54,626 DEBUG [http-nio-9000-exec-6] [com.cy.share.mapper.UserMapper.selectOne]:137 - ==> Parameters: cyyy(String), 123456(String)
-2025-12-02 18:50:54,627 DEBUG [http-nio-9000-exec-6] [com.cy.share.mapper.UserMapper.selectOne]:137 - <==      Total: 1

@@ -19,8 +19,10 @@ public enum ResultCode {
 
     // 业务逻辑错误（可根据业务扩展）
     BUSINESS_ERROR(600, "业务逻辑错误"),
-    DATA_DUPLICATE(601, "数据已存在"),
-    DATA_NOT_FOUND(602, "用户不存在"),
+    LIKE_ALREADY_LIKED(601, "已经点过赞了"),
+    LIKE_NOT_LIKED(602, "尚未点赞，无法取消"),
+    DATA_DUPLICATE(603, "数据已存在"),
+    DATA_NOT_FOUND(604, "用户不存在"),
 
     //数据库错误
     DATA_HANDLE_ERROR(700,"数据库错误");

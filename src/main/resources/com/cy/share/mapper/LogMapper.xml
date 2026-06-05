@@ -3,44 +3,40 @@
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.cy.share.mapper.LogMapper">
-    <cache/>
     <resultMap id="BaseResultMap" type="com.cy.share.pojo.Log">
             <id property="id" column="id" />
-            <result property="picurl" column="picurl" />
             <result property="info" column="info" />
             <result property="title" column="title" />
             <result property="author" column="author" />
-            <result property="createTime" column="createTime" />
-            <result property="updateTime" column="updateTime" />
+            <result property="createTime" column="create_time" />
+            <result property="updateTime" column="update_time" />
             <result property="love" column="love" />
             <result property="version" column="version" />
             <result property="deleted" column="deleted" />
     </resultMap>
 
     <sql id="Base_Column_List">
-        id,picurl,info,title,author,createTime,
-        updateTime,love,version,deleted
+        id,info,title,author,create_time,
+        update_time,love,version,deleted
     </sql>
-    <insert id="add">
+
+    <insert id="add" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO log (
-            picurl, info, title, author, createTime,
-            updateTime, love, version, deleted
+            info, title, author, create_time,
+            update_time, love,version, deleted
         ) VALUES (
-                     #{picurl}, #{info}, #{title}, #{author}, #{createTime},
-                     #{updateTime}, #{love}, #{version}, #{deleted}
-                 )
+            #{info}, #{title}, #{author}, #{createTime},
+            #{updateTime}, #{love}, #{version}, #{deleted}
+        )
     </insert>
+
     <update id="updatebyId">
         UPDATE log
         <set>
-            <!-- 仅当字段非空时才更新 -->
-            <if test="picurl != null and picurl != ''">
-                picurl = #{picurl},
-            </if>
             <if test="title != null and title != ''">
                 title = #{title},
             </if>
-            <if test="love != null and love != ''">
+            <if test="love != null">
                 love = #{love},
             </if>
             <if test="author != null and author != ''">
@@ -49,58 +45,59 @@
             <if test="info != null and info != ''">
                 info = #{info},
             </if>
-            updateTime = NOW(),
+            update_time = NOW(),
         </set>
-        WHERE
-        id = #{id}
-        AND deleted = 1;
+        WHERE id = #{id} AND deleted = 1
     </update>
+
     <select id="queryLogList" resultType="com.cy.share.vo.LogListVo">
         SELECT
-        l.id, l.title,l.picurl,l.author,
-        l.love,u.avatorurl as authorAvatar
+            l.id, l.title, l.author,
+            l.love, l.create_time AS createTime, u.avatorurl AS authorAvatar
         FROM log l
         LEFT JOIN user u ON l.author = u.name
         <where>
             l.deleted = 1
-            AND u.deleted =1
+            AND u.deleted = 1
+            <if test="cursor != null">
+                AND l.create_time &lt; #{cursor}
+            </if>
             <if test="key != null and key.trim() != ''">
                 AND l.author = #{key}
             </if>
         </where>
-        ORDER BY l.createTime DESC
-        LIMIT #{x}, #{y}
+        ORDER BY l.create_time DESC
+        LIMIT #{size}
     </select>
+
     <select id="findById" resultType="com.cy.share.vo.LogDetailVo">
         SELECT
-            l.picurl,
             l.title,
             u.avatorurl AS avatarurl,
             l.love,
             l.author,
             l.info,
-            l.createTime,
-            l.updateTime
-        FROM
-            log l
-                LEFT JOIN
-            user u ON l.author = u.name
-        WHERE
-            l.id = #{id}
+            l.create_time AS createTime,
+            l.update_time AS updateTime
+        FROM log l
+        LEFT JOIN user u ON l.author = u.name
+        WHERE l.id = #{id}
           AND l.deleted = 1
-          AND u.deleted = 1;
+          AND u.deleted = 1
     </select>
+
     <select id="editById" resultType="com.cy.share.vo.LogEditVo">
-        SELECT
-            picurl,
-            title,
-            author,
-            info,
-            love
-        FROM
-            log
-        WHERE
-            id = #{id}
-          AND deleted = 1;
+        SELECT title, author, info, love
+        FROM log
+        WHERE id = #{id} AND deleted = 1
     </select>
+
+    <update id="incrementLove">
+        UPDATE log SET love = love + 1 WHERE id = #{logId} AND deleted = 1
+    </update>
+
+    <update id="decrementLove">
+        UPDATE log SET love = love - 1 WHERE id = #{logId} AND love > 0 AND deleted = 1
+    </update>
+
 </mapper>

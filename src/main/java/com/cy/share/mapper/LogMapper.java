@@ -8,6 +8,7 @@ import com.cy.share.vo.LogEditVo;
 import com.cy.share.vo.LogListVo;
 import org.apache.ibatis.annotations.Param;
 
+import java.util.Date;
 import java.util.List;
 
 /**
@@ -18,7 +19,7 @@ import java.util.List;
 */
 public interface LogMapper extends BaseMapper<Log> {
 
-    List<LogListVo> queryLogList(@Param("x")Integer pageNum, @Param("y") Integer pageSize, @Param("key") String key);
+    List<LogListVo> queryLogList(@Param("cursor") Date cursor, @Param("size") Integer size, @Param("key") String key);
 
     boolean add(Log log);
 
@@ -27,6 +28,10 @@ public interface LogMapper extends BaseMapper<Log> {
     LogEditVo editById(Integer id);
 
     boolean updatebyId(ReleaseDto log);
+
+    int incrementLove(@Param("logId") Integer logId);
+
+    int decrementLove(@Param("logId") Integer logId);
 }
 
 

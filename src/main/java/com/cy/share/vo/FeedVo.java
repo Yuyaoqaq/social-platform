@@ -1,14 +1,15 @@
-package com.cy.share.dto;
+package com.cy.share.vo;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class QueryDto {
-    private Long cursor;
-    private Integer size;
-    private String author;
+public class FeedVo {
+    private List<LogListVo> list;
+    private Long nextCursor;
 }

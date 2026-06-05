@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.cy.share.mapper.LogPicMapper">
+
+    <insert id="insertBatch">
+        INSERT INTO log_pic (log_id, picurl, sort) VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.logId}, #{item.picurl}, #{item.sort})
+        </foreach>
+    </insert>
+
+    <delete id="deleteByLogId">
+        DELETE FROM log_pic WHERE log_id = #{logId}
+    </delete>
+
+    <select id="selectUrlsByLogId" resultType="java.lang.String">
+        SELECT picurl FROM log_pic WHERE log_id = #{logId} ORDER BY sort
+    </select>
+
+    <select id="selectByLogIds" resultType="com.cy.share.pojo.LogPic">
+        SELECT log_id, picurl, sort FROM log_pic
+        WHERE log_id IN
+        <foreach collection="logIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        ORDER BY log_id, sort
+    </select>
+
+</mapper>

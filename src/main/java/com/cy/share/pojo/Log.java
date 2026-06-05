@@ -22,7 +22,6 @@ public class Log implements Serializable {
     private static final long serialVersionUID = 1L; // 建议显式声明序列化ID
     @TableId(type = IdType.AUTO)
     private Integer id;
-    private String picurl;
     private String info;
     private String title;
     private String author;
@@ -32,7 +31,7 @@ public class Log implements Serializable {
     @TableField(fill = FieldFill.INSERT_UPDATE)
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
     private Date updateTime;
-    private String love;
+    private Integer love;
     @TableField(fill = FieldFill.INSERT)
     @Version
     private Integer version;

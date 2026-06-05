@@ -2,24 +2,28 @@
 spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/share?useSSL=false&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&rewriteBatchedStatements=true
-    username: root
-    password: 123456
+    url: jdbc:mysql://localhost:3306/share2?useSSL=false&characterEncoding=UTF-8&connectionCollation=utf8mb4_unicode_ci&serverTimezone=Asia/Shanghai&rewriteBatchedStatements=true
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD}
     type: com.alibaba.druid.pool.DruidDataSource
     druid:
-      initialSize: 10
-      maxActive: 50
-      minIdle: 5
+      initialSize: 20
+      maxActive: 200
+      minIdle: 20
       maxWait: 60000
       timeBetweenEvictionRunsMillis: 60000
       minEvictableIdleTimeMillis: 300000
+  redis:
+    host: localhost
+    port: 6379
+    database: 0
+    timeout: 3000
 
 # MyBatis-Plus 核心配置
 mybatis-plus:
-  mapper-locations: classpath:mapper/*.xml
+  mapper-locations: classpath*:com/cy/share/mapper/*.xml
   type-aliases-package: com.cy.share.pojo
   configuration:
-    cache-enabled: true
     map-underscore-to-camel-case: true
     log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
   global-config:
@@ -40,11 +44,27 @@ server:
 #对应的配置文件
 alibaba:
   cloud:
-    secret-key: #你自己的
-    access-key: #你自己的
+    secret-key: ${OSS_SECRET_KEY}
+    access-key: ${OSS_ACCESS_KEY}
     oss:
       endpoint: oss-cn-beijing.aliyuncs.com
       bucket: health-plat
+    sts:
+      role-arn: ${STS_ROLE_ARN}
 
 ip:
   localhost
+
+elasticsearch:
+  host: 192.168.175.18
+  port: 9200
+
+# RocketMQ
+rocketmq:
+  name-server: 192.168.175.18:9876
+  producer:
+    group: share-producer-group
+  consumer:
+    group: share-es-sync-consumer
+    max-reconsume-times: 3
+

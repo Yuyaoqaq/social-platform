@@ -1,33 +1,31 @@
 package com.cy.share.service.impl;
 
-import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.cy.share.pojo.Code;
+import com.cy.share.common.constant.RedisConstant;
 import com.cy.share.service.CodeService;
-import com.cy.share.mapper.CodeMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
-/**
-* @author 21701
-* @description 针对表【code】的数据库操作Service实现
-* @createDate 2025-12-02 22:43:34
-*/
+import java.util.concurrent.TimeUnit;
+
 @Service
-public class CodeServiceImpl extends ServiceImpl<CodeMapper, Code>
-    implements CodeService{
+public class CodeServiceImpl implements CodeService {
+
+    private static final long TTL_MINUTES = 5;
+
     @Autowired
-    CodeMapper codeMapper;
+    StringRedisTemplate redisTemplate;
+
     @Override
-    public boolean add(String phone ,String code) {
-        return codeMapper.add(phone,code);
+    public void save(String phone, String code) {
+        redisTemplate.opsForValue().set(RedisConstant.SMS_CODE_PREFIX + phone, code, TTL_MINUTES, TimeUnit.MINUTES);
     }
 
     @Override
-    public boolean getOne(String phone, String code) {
-        return codeMapper.getOne(phone,code);
+    public boolean verify(String phone, String code) {
+        String stored = redisTemplate.opsForValue().get(RedisConstant.SMS_CODE_PREFIX + phone);
+        if (stored == null || !stored.equals(code)) return false;
+        redisTemplate.delete(RedisConstant.SMS_CODE_PREFIX + phone);
+        return true;
     }
 }
-
-
-
-

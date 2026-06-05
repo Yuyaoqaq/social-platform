@@ -4,8 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.cy.share.common.annotation.UnInterception;
 import com.cy.share.common.constant.Jwtconstant;
 import com.cy.share.common.constant.RedisConstant;
-import com.cy.share.common.constant.ResultCode;
 import com.cy.share.common.exception.CodeWrongException;
+import com.cy.share.common.exception.UserNotFoundException;
 import com.cy.share.common.exception.UserRegistException;
 import com.cy.share.common.exception.UserSaveException;
 import com.cy.share.common.utils.JwtUtil;
@@ -20,6 +20,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
@@ -37,15 +38,16 @@ public class LoginController {
     private final CodeService codeService;
     private final RsaKeyHolder rsaKeyHolder;
     private final StringRedisTemplate redisTemplate;
+    private final PasswordEncoder passwordEncoder;
 
     @UnInterception
     @PostMapping("/login")
     public Result login(@RequestBody User data, HttpServletResponse response) {
         User user = userService.getOne(new QueryWrapper<User>()
                 .eq("name", data.getName())
-                .eq("pwd", data.getPwd())
                 .last("LIMIT 1"));
-        if (user == null) return Result.fail(ResultCode.DATA_NOT_FOUND);
+        if (user == null || !passwordEncoder.matches(data.getPwd(), user.getPwd()))
+            throw new UserNotFoundException();
         return buildTokenResponse(user, response);
     }
 
@@ -77,6 +79,7 @@ public class LoginController {
     @UnInterception
     @PostMapping("/registerover")
     public Result registerOver(@RequestBody User data, HttpServletResponse response) {
+        data.setPwd(passwordEncoder.encode(data.getPwd()));
         boolean save = userService.save(data);
         if (!save) throw new UserSaveException();
         return buildTokenResponse(data, response);

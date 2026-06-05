@@ -31,7 +31,7 @@ public class OssConfig {
 
     @Bean
     public IAcsClient stsClient() {
-        DefaultProfile profile = DefaultProfile.getProfile("", accessKey, secretKey);
+        DefaultProfile profile = DefaultProfile.getProfile("cn-beijing", accessKey, secretKey);
         return new DefaultAcsClient(profile);
     }
 }

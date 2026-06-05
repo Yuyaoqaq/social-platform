@@ -2,13 +2,11 @@ package com.cy.share.service;
 
 import com.cy.share.dto.QueryDto;
 import com.cy.share.dto.ReleaseDto;
-import com.cy.share.pojo.Log;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.cy.share.pojo.Log;
+import com.cy.share.vo.FeedVo;
 import com.cy.share.vo.LogDetailVo;
 import com.cy.share.vo.LogEditVo;
-import com.cy.share.vo.LogListVo;
-
-import java.util.List;
 
 /**
 * @author 21701
@@ -17,9 +15,9 @@ import java.util.List;
 */
 public interface LogService extends IService<Log> {
 
-    List<LogListVo> queryLogList(QueryDto query);
+    FeedVo queryLogList(QueryDto query);
 
-    boolean add(Log log);
+    boolean add(ReleaseDto dto);
 
     LogDetailVo findById(Integer id);
 

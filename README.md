@@ -1,10 +1,10 @@
----
+
 
 # 短图文社交平台 — 技术文档
 
 > Spring Boot 3.3 + JDK 17 | MyBatis-Plus | MySQL 8.0 | Redis 7.x | Elasticsearch 8.x | RocketMQ 5.x
 
----
+
 
 ## 一、登录注册：无状态鉴权 + 会话可吊销
 

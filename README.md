@@ -2,9 +2,7 @@
 
 # 短图文社交平台 — 技术文档
 
-> Spring Boot 3.3 + JDK 17 | MyBatis-Plus | MySQL 8.0 | Redis 7.x | Elasticsearch 8.x | RocketMQ 5.x
-
-
+> Spring Boot 3.3 + JDK 17 | MyBatis-Plus | MySQL 8.0 | Redis | Redisson | Elasticsearch 7.x | RocketMQ 5.x
 
 ## 一、登录注册：无状态鉴权 + 会话可吊销
 
@@ -41,7 +39,7 @@ accessToken过期(4001) → 客户端自动带refreshToken请求续期
                发放新accessToken + 新refreshToken（旧refreshToken删除）
 ```
 
-- 过期码分类：`4001`=Token过期可续，`4002`=Token非法需重登
+- 过期码分类：`4001`=Token过期可续，`401`=Token非法需重登
 - 细粒度错误码，客户端可精确决策行为
 
 ### 1.4 安全设计
@@ -174,7 +172,7 @@ Redis ZSet查用户维度缓存
     ↓ 未命中
 查MySQL → Redisson.tryLock()抢锁
               ↓ 抢到 → 查DB重建缓存
-              ↓ 未抢到 → 自旋等缓存
+              ↓ 未抢到 → 结束
 ```
 
 **批量优化**：Feed流场景，一次取出用户ZSet全部logId，存内存Set，循环用 `set.contains(logId)` 判断，**消灭N+1查询，单次网络往返**。
@@ -205,8 +203,6 @@ UPDATE log SET love = love - 1 WHERE id = ? AND love > 0;
 ```
 
 **防雪崩**：24h基础TTL加上±2h随机偏移，批量过期不集中在同一时刻。
-
-**原子更新**：Redis使用Pipeline或Lua脚本保证ZSet操作原子性。
 
 ---
 
@@ -248,7 +244,7 @@ UPDATE log SET love = love - 1 WHERE id = ? AND love > 0;
 | 乐观锁 | MyBatis-Plus `@Version` | 并发更新防护 |
 | 逻辑删除 | MP `@TableLogic` | 数据可追溯 |
 | 自动填充 | `MetaObjectHandler` | createTime/updateTime统一注入 |
-| 权限控制 | `@UnInterception` + Filter | 声明式放行，颗粒度接口鉴权 |
+| 日志管理 | 自定义logback.xml | 精准控制日志输出等级、路径 |
 
 ---
 

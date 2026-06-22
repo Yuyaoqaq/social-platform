@@ -14,6 +14,7 @@ import com.cy.share.service.EsSyncProducer;
 import com.cy.share.service.LikeService;
 import com.cy.share.vo.LikeTop3Vo;
 import com.cy.share.vo.LogListVo;
+import com.cy.share.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RLock;
@@ -43,6 +44,7 @@ public class LikeServiceImpl implements LikeService {
     private final LogPicMapper logPicMapper;
     private final UserMapper userMapper;
     private final EsSyncProducer esSyncProducer;
+    private final NotificationService notificationService;
 
     // ---------- 写操作：先 MySQL，再同步 Redis ----------
 
@@ -72,6 +74,14 @@ public class LikeServiceImpl implements LikeService {
                     esSyncProducer.sendBlogLike(logId);
                 } catch (Exception e) {
                     log.error("MQ send failed for like, logId={}", logId, e);
+                }
+
+                if (inserted > 0) {
+                    try {
+                        notificationService.onLike(userId, logId);
+                    } catch (Exception e) {
+                        log.error("Notification failed for like, userId={}, logId={}", userId, logId, e);
+                    }
                 }
             }
         });

@@ -2,7 +2,7 @@
 
 # 短图文社交平台 — 技术文档
 
-> Spring Boot 3.3 + JDK 17 | MyBatis-Plus | MySQL 8.0 | Redis | Redisson | Elasticsearch 7.x | RocketMQ 5.x
+> Spring Boot 3.3.12 + JDK 17 | Maven 多模块 | MyBatis-Plus 3.5.7 | MySQL 8.0 | Druid 1.2.23 | Redis + Redisson 3.27.2 | Elasticsearch 7.12.1 | RocketMQ Starter 2.3.0 | Apache Dubbo 3.3.0 | Nacos 2.3.2 | Spring AI 1.0.0-M5 (Qwen VL) | Spring WebSocket | Alibaba Cloud OSS | JJWT 0.12.6 + BCrypt | XXL-Job 3.4.2
 
 ## 一、登录注册：无状态鉴权 + 会话可吊销
 

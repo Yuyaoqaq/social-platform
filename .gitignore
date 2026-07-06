@@ -63,3 +63,5 @@ trace.log          # 追踪日志
 secrets/           # 密钥/证书目录
 # 测试
 src/test/
+docs/
+log/

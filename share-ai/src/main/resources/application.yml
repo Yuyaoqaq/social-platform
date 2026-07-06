@@ -1,0 +1,55 @@
+server:
+  port: 9001
+
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/share2?useSSL=false&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&rewriteBatchedStatements=true
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:123456}
+    type: com.alibaba.druid.pool.DruidDataSource
+    druid:
+      initialSize: 5
+      maxActive: 10
+      minIdle: 5
+      maxWait: 6000
+
+  # Spring AI — OpenAI 兼容模式对接 DashScope（阿里百炼）
+  ai:
+    openai:
+      api-key: ${aliQwen-api}
+      base-url: https://dashscope.aliyuncs.com/compatible-mode
+      chat:
+        options:
+          model: qwen3-vl-plus
+          temperature: 0.1
+
+mybatis-plus:
+  mapper-locations: classpath*:com/cy/share/ai/mapper/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+  global-config:
+    db-config:
+      id-type: auto
+
+logging:
+  level:
+    com.cy.share.ai: DEBUG
+
+# Dubbo Provider
+dubbo:
+  application:
+    name: share-ai
+    qos-enable: false
+  registry:
+    address: nacos://${NACOS_HOST:192.168.175.18}:8848
+  protocol:
+    name: dubbo
+    port: 20881
+
+# RocketMQ Producer
+rocketmq:
+  name-server: ${ROCKETMQ_HOST:192.168.175.18}:9876
+  producer:
+    group: share-ai-producer-group

@@ -1,0 +1,106 @@
+# 数据源配置
+spring:
+  jackson:
+    deserialization:
+      ACCEPT_SINGLE_VALUE_AS_ARRAY: true
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/share2?useSSL=false&characterEncoding=UTF-8&connectionCollation=utf8mb4_unicode_ci&serverTimezone=Asia/Shanghai&rewriteBatchedStatements=true
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:123456}
+    type: com.alibaba.druid.pool.DruidDataSource
+    druid:
+      initialSize: 20
+      maxActive: 20
+      minIdle: 20
+      maxWait: 60000
+      timeBetweenEvictionRunsMillis: 60000
+      minEvictableIdleTimeMillis: 300000
+  redis:
+    host: localhost
+    port: 6379
+    database: 0
+    timeout: 3000
+
+# MyBatis-Plus 核心配置
+mybatis-plus:
+  mapper-locations: classpath*:com/cy/share/mapper/*.xml
+  type-aliases-package: com.cy.share.pojo
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+  global-config:
+    db-config:
+      logic-delete-value: 0
+      logic-not-delete-value: 1
+      id-type: auto
+
+# 日志配置（Logback）
+logging:
+  level:
+    com.cy.share.mapper: DEBUG # 控制 MyBatis-Plus Mapper 包的 SQL 日志级别为 DEBUG
+    com.cy.share.config.interceptor: DEBUG          # 拦截器包输出DEBUG日志（关键配置）
+server:
+  port: 9000
+
+# oss
+#对应的配置文件
+alibaba:
+  cloud:
+    secret-key: ${OSS_SECRET_KEY:REDACTED}
+    access-key: ${OSS_ACCESS_KEY:REDACTED}
+    oss:
+      endpoint: oss-cn-beijing.aliyuncs.com
+      bucket: health-plat
+    sts:
+      role-arn: ${STS_ROLE_ARN:REDACTED}
+
+ip:
+  localhost
+
+elasticsearch:
+  host: ${ES_HOST:192.168.175.18}
+  port: 9200
+
+management:
+  health:
+    elasticsearch:
+      enabled: false
+
+# XXL-Job (enable: true 开启)
+xxl:
+  job:
+    enabled: false
+    admin:
+      addresses: http://127.0.0.1:8081
+    accessToken: default_token
+    executor:
+      appname: share-executor
+      address: ''
+      ip: 127.0.0.1
+      port: 9999
+      logpath: D:/JAVAfilesAll/share/logs/xxl-job
+      logretentiondays: 7
+
+# RocketMQ
+rocketmq:
+  name-server: ${ROCKETMQ_HOST:192.168.175.18}:9876
+  producer:
+    group: share-producer-group
+  consumer:
+    group: share-es-sync-consumer
+    max-reconsume-times: 3
+
+# Dubbo + Nacos
+dubbo:
+  application:
+    name: share-service
+    qos-enable: false
+  registry:
+    address: nacos://${NACOS_HOST:192.168.175.18}:8848
+  protocol:
+    name: dubbo
+    port: 20880
+  consumer:
+    check: false
+

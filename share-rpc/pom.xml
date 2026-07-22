@@ -46,6 +46,12 @@
             <optional>true</optional>
         </dependency>
 
+        <!-- SLF4J API (needed for @Slf4j Lombok annotation at compile scope) -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+
         <!-- Lombok -->
         <dependency>
             <groupId>org.projectlombok</groupId>

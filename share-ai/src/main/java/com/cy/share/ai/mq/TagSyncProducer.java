@@ -12,6 +12,10 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.List;
 
+/**
+ * 标签同步 RocketMQ 生产者，将 AI 生成的标签以 BLOG_TAG 消息顺序发送到 es-sync-topic，
+ * 供下游（如 ES 索引同步）消费；发送失败时写入 MqFailureRecord 留底。
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor

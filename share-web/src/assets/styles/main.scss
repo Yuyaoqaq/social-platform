@@ -1,0 +1,40 @@
+:root {
+  color: #16303a;
+  background: #f5fbfc;
+  font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  --share-primary: #0891b2;
+  --share-primary-dark: #0e7490;
+  --share-text: #16303a;
+  --share-muted: #526a73;
+  --share-border: #dcebed;
+  --share-surface: #ffffff;
+  --share-background: #f5fbfc;
+  --share-danger: #c2414b;
+  --share-radius: 18px;
+  --share-shadow: 0 14px 40px rgb(15 78 99 / 8%);
+  --van-primary-color: var(--share-primary);
+}
+
+* { box-sizing: border-box; }
+
+html, body, #app { min-height: 100%; margin: 0; }
+
+body { min-width: 320px; font-size: 16px; line-height: 1.6; }
+
+button, input, textarea { font: inherit; }
+
+button, a { -webkit-tap-highlight-color: transparent; }
+
+:focus-visible { outline: 3px solid rgb(8 145 178 / 30%); outline-offset: 2px; }
+
+.page-shell {
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: max(24px, env(safe-area-inset-top)) 20px max(24px, env(safe-area-inset-bottom));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; }
+}

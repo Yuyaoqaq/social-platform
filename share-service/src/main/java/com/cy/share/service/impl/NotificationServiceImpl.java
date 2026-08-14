@@ -58,6 +58,7 @@ public class NotificationServiceImpl implements NotificationService {
 
         // 6. Rate limiting + push
         String key = authorId + ":" + logId;
+        //原子操作，对key，的值进行函数操作。函数（key，旧值），返回新值
         windows.compute(key, (k, existingWindow) -> {
             if (existingWindow == null) {
                 // New window: push immediately with count=1

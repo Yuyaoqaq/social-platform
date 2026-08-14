@@ -7,7 +7,7 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://localhost:3306/share2?useSSL=false&characterEncoding=UTF-8&connectionCollation=utf8mb4_unicode_ci&serverTimezone=Asia/Shanghai&rewriteBatchedStatements=true
     username: ${DB_USERNAME:root}
-    password: ${DB_PASSWORD:123456}
+    password: ${DB_PASSWORD}
     type: com.alibaba.druid.pool.DruidDataSource
     druid:
       initialSize: 20
@@ -47,13 +47,13 @@ server:
 #对应的配置文件
 alibaba:
   cloud:
-    secret-key: ${OSS_SECRET_KEY:REDACTED}
-    access-key: ${OSS_ACCESS_KEY:REDACTED}
+    secret-key: ${OSS_SECRET_KEY}
+    access-key: ${OSS_ACCESS_KEY}
     oss:
       endpoint: oss-cn-beijing.aliyuncs.com
       bucket: health-plat
     sts:
-      role-arn: ${STS_ROLE_ARN:REDACTED}
+      role-arn: ${STS_ROLE_ARN}
 
 ip:
   localhost
@@ -73,13 +73,13 @@ xxl:
     enabled: false
     admin:
       addresses: http://127.0.0.1:8081
-    accessToken: default_token
+    accessToken: ${XXL_JOB_ACCESS_TOKEN:}
     executor:
       appname: share-executor
       address: ''
       ip: 127.0.0.1
       port: 9999
-      logpath: D:/JAVAfilesAll/share/logs/xxl-job
+      logpath: D:/JAVAfilesAll/share/log/xxl-job
       logretentiondays: 7
 
 # RocketMQ

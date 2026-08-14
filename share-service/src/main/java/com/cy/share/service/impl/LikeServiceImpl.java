@@ -281,6 +281,7 @@ public class LikeServiceImpl implements LikeService {
         try {
             if (lock.tryLock(3, 10, TimeUnit.SECONDS)) {
                 try {
+                    // double check
                     Long size = stringRedisTemplate.opsForZSet().size(key);
                     if (size != null && size > 0) {
                         return;

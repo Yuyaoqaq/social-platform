@@ -20,6 +20,10 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
+/**
+ * AI 自动打标 Dubbo 服务实现，通过 ChatClient 对图文内容生成标签，事务内持久化后异步发送 MQ 同步消息。
+ * 与 Agent 对话功能无关，属于独立的 AI 辅助运营能力。
+ */
 @Slf4j
 @DubboService
 @RequiredArgsConstructor

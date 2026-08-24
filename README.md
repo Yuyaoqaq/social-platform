@@ -1,3 +1,7 @@
+# Share
+**项目背景：** AI 赋能短图文 UGC 内容社区，支持发布浏览等基础功能，并提供 AI 打标和智能创作能力。
+涵盖feed流无限滚动，多图文发布，点赞❤️互动等功能，2.0版本ai🔥创作，让产品/偶像/游戏运营们解放大脑～
+
 ## 1.项目结构
 ![项目结构](https://health-plat.oss-cn-beijing.aliyuncs.com/screenshot-%E9%A1%B9%E7%9B%AE%E7%BB%93%E6%9E%84.png)
 
@@ -6,8 +10,10 @@
 ![RPC 流程示意图](https://health-plat.oss-cn-beijing.aliyuncs.com/screenshot-rpc.png)
 
 ## 3. Agent 路由 + 链条模型
+**主链条：**
 
 ![Agent 路由与链条模型 - 图1](https://health-plat.oss-cn-beijing.aliyuncs.com/screenshot-workflow1.png)
+**ReAct工具调用工作流**
 
 ![Agent 路由与链条模型 - 图2](https://health-plat.oss-cn-beijing.aliyuncs.com/screenshot-workflow2.png)
 

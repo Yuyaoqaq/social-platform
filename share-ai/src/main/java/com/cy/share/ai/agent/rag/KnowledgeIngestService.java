@@ -27,9 +27,8 @@ public class KnowledgeIngestService {
             "title_materials",
             "content_materials",
             "image_materials",
-            "platform_rules",
-            "blog_samples",
-            "style_templates");
+            "style_templates",
+            "platform_rules");
 
     private final AgentProperties properties;
     private final QdrantKnowledgeStore knowledgeStore;

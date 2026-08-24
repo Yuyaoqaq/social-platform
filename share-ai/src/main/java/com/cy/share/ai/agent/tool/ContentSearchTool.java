@@ -27,7 +27,9 @@ public class ContentSearchTool implements AgentTool {
 
     @Override
     public String description() {
-        return "根据关键词和标签搜索站内图文，适合查找相关内容素材";
+        return "站内图文搜索：按关键词/标签检索平台已有帖子，用于查找可参考的内容素材、对标同类内容。\n"
+                + "什么时候用：用户的提问可以轻松抽取出明确主题、关键词或标签时。\n"
+                + "什么时候不用：用户明确要求实时性内容，当前最火爆内容时，请使用 search_external_topics 工具调用站外搜索引擎。";
     }
 
     @Override

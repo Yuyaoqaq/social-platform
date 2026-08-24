@@ -13,7 +13,7 @@ import java.time.Duration;
  * Spring AI 基础设施配置，提供全局 ChatClient Bean，以及针对 DashScope/Qdrant 等外部 HTTP 调用的超时设置。
  */
 @Configuration
-public class SpringAiConfig {
+public class OpenAiConfig {
 
     /**
      * 延长调用 DashScope 等外部 HTTP 服务（生图、搜索、Qdrant）的连接和读取时间。

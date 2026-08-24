@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.cy.share.mapper.LogTagMapper">
+
+    <select id="selectByLogIds" resultType="com.cy.share.pojo.LogTag">
+        SELECT id, log_id, tag_name, create_time FROM log_tag
+        WHERE log_id IN
+        <foreach collection="logIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        ORDER BY log_id
+    </select>
+
+</mapper>

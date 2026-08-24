@@ -4,7 +4,6 @@ import com.cy.share.rpc.core.client.RpcClient;
 import com.cy.share.rpc.core.server.RpcServer;
 import com.cy.share.rpc.lb.LoadBalancer;
 import com.cy.share.rpc.lb.RandomLoadBalancer;
-import com.cy.share.rpc.registry.LocalRegistry;
 import com.cy.share.rpc.registry.NacosRegistry;
 import com.cy.share.rpc.registry.Registry;
 import com.cy.share.rpc.registry.ServiceMeta;
@@ -12,7 +11,6 @@ import com.cy.share.rpc.retry.FailFastPolicy;
 import com.cy.share.rpc.serialize.JsonSerializer;
 import com.cy.share.rpc.serialize.Serializer;
 import com.cy.share.rpc.spring.annotation.RpcService;
-import com.cy.share.rpc.util.ServiceMap;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -30,14 +28,9 @@ public class RpcAutoConfiguration {
 
     @Bean
     public Registry rpcRegistry(RpcProperties props) {
-        String type = props.getRegistry().getType();
-        if ("nacos".equalsIgnoreCase(type)) {
             String addr = props.getRegistry().getNacos().getServerAddr();
             log.info("RPC registry: Nacos at {}", addr);
             return new NacosRegistry(addr);
-        }
-        log.info("RPC registry: Local (in-memory)");
-        return new LocalRegistry();
     }
 
     @Bean

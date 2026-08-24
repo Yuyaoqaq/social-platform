@@ -15,135 +15,245 @@ import org.springframework.web.client.RestClientResponseException;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
- * Qdrant 向量数据库客户端，负责向量嵌入、集合管理、向量 upsert 和相似度搜索，
- * 是 RAG 知识库的底层存储与检索引擎。
+ * Qdrant 知识库存储。
+ * 每个知识点同时保存语义向量和 BM25 关键词向量，查询时通过 RRF 合并两路排名。
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class QdrantKnowledgeStore {
-    //规定维度
+
     private static final int MIN_VECTOR_SIZE = 256;
     private static final int MAX_VECTOR_SIZE = 2560;
+    private static final int UPSERT_BATCH_SIZE = 64;
+    private static final String DENSE_VECTOR = "dense";
+    private static final String BM25_VECTOR = "bm25";
+    private static final String BM25_MODEL = "qdrant/bm25";
 
     private final AgentProperties properties;
     private final ObjectProvider<EmbeddingModel> embeddingModelProvider;
     private final RestClient.Builder restClientBuilder;
     private final ObjectMapper objectMapper;
-    //添加或更新（操作点集合）
-    public int upsert(List<KnowledgeChunk> chunks) {
+
+    /**
+     * 全量重建知识集合，避免已被删除或改名的旧知识继续留在检索结果中。
+     */
+    public int replaceAll(List<KnowledgeChunk> chunks) {
         if (!properties.getRag().isEnabled() || chunks.isEmpty()) {
             return 0;
         }
-        EmbeddingModel embeddingModel = requireEmbeddingModel();
-        RestClient client = restClientBuilder.build();
-        List<Map<String, Object>> points = new ArrayList<>();
-        //[
-        //  {
-        //    "id": "chunk-123",
-        //    "vector": [0.1, 0.2, ...], // float array
-        //    "payload": {
-        //      "content": "实际文本...",
-        //      "chunkId": "chunk-123",
-        //      "source": "doc.pdf" // metadata 中的其他键
-        //    }
-        //  },
-        //]
-        int vectorSize = configuredVectorSize();
 
+        EmbeddingModel embeddingModel = requireEmbeddingModel();
+        int vectorSize = configuredVectorSize();
+        List<Map<String, Object>> points = new ArrayList<>(chunks.size());
+
+        // 先完成语义向量生成，再替换旧集合，降低重建中途失败的影响。
         for (KnowledgeChunk chunk : chunks) {
-            float[] vector = embeddingModel.embed(chunk.content());
-            validateVectorDimensions(vector.length, vectorSize);
+            //得到每块知识的metadata中的（分类 ： 内容）
+            String indexText = indexText(chunk);
+            float[] denseVector = embeddingModel.embed(indexText);
+            validateVectorDimensions(denseVector.length, vectorSize);
+            //拼装payload
             Map<String, Object> payload = new HashMap<>(chunk.metadata());
             payload.put("content", chunk.content());
-            payload.put("chunkId", chunk.id());
             points.add(Map.of(
                     "id", chunk.id(),
-                    "vector", vector,
+                    "vector", Map.of(
+                            DENSE_VECTOR, denseVector,
+                            BM25_VECTOR, bm25Document(indexText)),
                     "payload", payload));
         }
 
-        ensureCollection(client, vectorSize);
-        //同步等待
-        String url = baseUrl() + "/collections/" + properties.getRag().getCollection() + "/points?wait=true";
-        client.put().uri(url)
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(Map.of("points", points))
-                .retrieve()
-                //用于忽略响应体（Body），只返回一个 ResponseEntity 对象（包含状态码、头部等信息）
-                .toBodilessEntity();
+        RestClient client = restClientBuilder.build();
+        recreateCollection(client, vectorSize);
+        String url = collectionUrl() + "/points?wait=true";
+        for (int start = 0; start < points.size(); start += UPSERT_BATCH_SIZE) {
+            int end = Math.min(points.size(), start + UPSERT_BATCH_SIZE);
+            client.put().uri(url)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(Map.of("points", points.subList(start, end)))
+                    .retrieve()
+                    .toBodilessEntity();
+        }
         return points.size();
     }
-
-    //搜索
-    public List<KnowledgeMatch> search(String query, int limit) {
-        if (!properties.getRag().isEnabled()) {
-            return List.of();
+    //《库名 ： 检索结果列表》
+    public Map<String, List<KnowledgeMatch>> search(String query,
+                                                     Map<String, Integer> libraryLimits) {
+        Map<String, List<KnowledgeMatch>> results = new LinkedHashMap<>();
+        libraryLimits.keySet().forEach(library -> results.put(library, List.of()));
+        if (!properties.getRag().isEnabled() || query == null || query.isBlank()
+                || libraryLimits.isEmpty()) {
+            return results;
         }
         EmbeddingModel embeddingModel = embeddingModelProvider.getIfAvailable();
         if (embeddingModel == null) {
             log.warn("EmbeddingModel is unavailable, skip Qdrant retrieval");
-            return List.of();
+            return results;
         }
 
         try {
-            float[] vector = embeddingModel.embed(query);
-            validateVectorDimensions(vector.length, configuredVectorSize());
-            String url = baseUrl() + "/collections/" + properties.getRag().getCollection() + "/points/search";
-            String body = restClientBuilder.build().post().uri(url)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(Map.of(
-                            "vector", vector,
-                            "limit", Math.max(1, limit),
-                            //是否返回payload元数据
-                            "with_payload", true))
-                    .retrieve()
-                    .body(String.class);
-
-            JsonNode result = objectMapper.readTree(body).path("result");
-            List<KnowledgeMatch> matches = new ArrayList<>();
-            for (JsonNode item : result) {
-                JsonNode payloadNode = item.path("payload");
-                Map<String, Object> metadata = objectMapper.convertValue(
-                        payloadNode, new TypeReference<Map<String, Object>>() { });
-                String content = String.valueOf(metadata.remove("content"));
-                matches.add(new KnowledgeMatch(
-                        item.path("id").asText(),
-                        content,
-                        item.path("score").asDouble(),
-                        metadata));
+            float[] denseVector = embeddingModel.embed(query);
+            validateVectorDimensions(denseVector.length, configuredVectorSize());
+            //针对每一个库进行混合检索，降级稠密相似度检索
+            for (Map.Entry<String, Integer> request : libraryLimits.entrySet()) {
+                String library = request.getKey();
+                int limit = request.getValue();
+                try {
+                    results.put(library, hybridSearch(query, denseVector, library, limit));
+                } catch (Exception hybridError) {
+                    log.warn("Qdrant hybrid retrieval failed, fallback to dense retrieval. library={}",
+                            library, hybridError);
+                    try {
+                        results.put(library, denseSearch(denseVector, library, limit));
+                    } catch (Exception denseError) {
+                        log.warn("Qdrant dense fallback failed. library={}", library, denseError);
+                    }
+                }
             }
-            return matches;
         } catch (Exception e) {
             log.warn("Qdrant retrieval failed, continue without RAG. query={}", query, e);
-            return List.of();
+        }
+        return results;
+    }
+
+    //混合检索，先用稠密向量和 BM25 关键词向量各自检索候选，再用加权 RRF 排名融合（语义 70%、关键词 30%）。
+    private List<KnowledgeMatch> hybridSearch(String query,
+                                               float[] denseVector,
+                                               String library,
+                                               int limit) throws Exception {
+        //从Qdrant底层捞出来的“候选者”数
+        int candidateLimit = Math.max(limit, properties.getRag().getHybridCandidateK());
+        //给Qdrant看的语句，保证只在指定库中检索
+        Map<String, Object> filter = libraryFilter(library);
+
+        Map<String, Object> densePrefetch = new HashMap<>();
+        densePrefetch.put("query", denseVector);
+        densePrefetch.put("using", DENSE_VECTOR);
+        densePrefetch.put("limit", candidateLimit);
+        addFilter(densePrefetch, filter);
+
+        Map<String, Object> keywordPrefetch = new HashMap<>();
+        keywordPrefetch.put("query", bm25Document(query));
+        keywordPrefetch.put("using", BM25_VECTOR);
+        keywordPrefetch.put("limit", candidateLimit);
+        addFilter(keywordPrefetch, filter);
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("prefetch", List.of(densePrefetch, keywordPrefetch));
+        // 加权 RRF：语义相似度占 70%、BM25 关键词占 30%（需要 Qdrant >= 1.17.0）
+        body.put("query", Map.of(
+                "fusion", "rrf",
+                "rrf", Map.of("weights", List.of(0.7f, 0.3f))));
+        body.put("limit", Math.max(1, limit));
+        body.put("with_payload", true);
+
+        String response = restClientBuilder.build().post()
+                .uri(collectionUrl() + "/points/query")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body)
+                .retrieve()
+                .body(String.class);
+        return parseMatches(response);
+    }
+
+    private List<KnowledgeMatch> denseSearch(float[] denseVector,
+                                             String library,
+                                             int limit) throws Exception {
+        Map<String, Object> body = new HashMap<>();
+        body.put("query", denseVector);
+        body.put("using", DENSE_VECTOR);
+        body.put("limit", Math.max(1, limit));
+        body.put("with_payload", true);
+        Map<String, Object> filter = libraryFilter(library);
+        if (!filter.isEmpty()) {
+            body.put("filter", filter);
+        }
+
+        String response = restClientBuilder.build().post()
+                .uri(collectionUrl() + "/points/query")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body)
+                .retrieve()
+                .body(String.class);
+        return parseMatches(response);
+    }
+
+    private List<KnowledgeMatch> parseMatches(String body) throws Exception {
+        JsonNode result = objectMapper.readTree(body).path("result");
+        JsonNode points = result.isArray() ? result : result.path("points");
+        List<KnowledgeMatch> matches = new ArrayList<>();
+
+        for (JsonNode item : points) {
+            Map<String, Object> metadata = objectMapper.convertValue(
+                    item.path("payload"), new TypeReference<Map<String, Object>>() { });
+            Object contentValue = metadata.remove("content");
+            String content = contentValue == null ? "" : String.valueOf(contentValue);
+            matches.add(new KnowledgeMatch(
+                    item.path("id").asText(),
+                    content,
+                    item.path("score").asDouble(),
+                    metadata));
+        }
+        return matches;
+    }
+
+    private String indexText(KnowledgeChunk chunk) {
+        String category = String.valueOf(chunk.metadata().getOrDefault("category", "")).trim();
+        return category.isEmpty() ? chunk.content() : category + "\n" + chunk.content();
+    }
+
+    private Map<String, Object> bm25Document(String text) {
+        return Map.of(
+                "text", text,
+                "model", BM25_MODEL,
+                "options", Map.of(
+                        "tokenizer", "multilingual",
+                        "stemmer", Map.of("type", "none"),
+                        "stopwords", Map.of()));
+    }
+
+    private Map<String, Object> libraryFilter(String library) {
+        if (library == null || library.isBlank()) {
+            return Map.of();
+        }
+        return Map.of("must", List.of(Map.of(
+                "key", "library",
+                "match", Map.of("value", library))));
+    }
+
+    private void addFilter(Map<String, Object> request, Map<String, Object> filter) {
+        if (!filter.isEmpty()) {
+            request.put("filter", filter);
         }
     }
-    //确保集合存在并且配置正确
-    private void ensureCollection(RestClient client, int dimensions) {
-        String collectionUrl = baseUrl() + "/collections/" + properties.getRag().getCollection();
+
+    private void recreateCollection(RestClient client, int dimensions) {
         try {
-            String body = client.get().uri(collectionUrl).retrieve().body(String.class);
-            validateCollectionConfig(body, dimensions);
+            client.delete().uri(collectionUrl()).retrieve().toBodilessEntity();
         } catch (RestClientResponseException e) {
             if (e.getStatusCode().value() != 404) {
                 throw e;
             }
-            client.put().uri(collectionUrl)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(Map.of("vectors", Map.of(
-                            "size", dimensions,
-                            "distance", configuredDistance())))
-                    .retrieve()
-                    .toBodilessEntity();
         }
+
+        client.put().uri(collectionUrl())
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of(
+                        "vectors", Map.of(DENSE_VECTOR, Map.of(
+                                "size", dimensions,
+                                "distance", configuredDistance())),
+                        "sparse_vectors", Map.of(BM25_VECTOR, Map.of(
+                                "modifier", "idf"))))
+                .retrieve()
+                .toBodilessEntity();
     }
 
-    //校验向量化后数据维度是否在范围内
     private int configuredVectorSize() {
         int vectorSize = properties.getRag().getVectorSize();
         if (vectorSize < MIN_VECTOR_SIZE || vectorSize > MAX_VECTOR_SIZE) {
@@ -152,7 +262,6 @@ public class QdrantKnowledgeStore {
         return vectorSize;
     }
 
-    //获取 RAG 配置的相似度算法
     private String configuredDistance() {
         String distance = properties.getRag().getDistance();
         if (distance == null || distance.isBlank()) {
@@ -161,7 +270,6 @@ public class QdrantKnowledgeStore {
         return distance;
     }
 
-    //验证向量维度是否与 RAG 配置一致
     private void validateVectorDimensions(int actualDimensions, int expectedDimensions) {
         if (actualDimensions != expectedDimensions) {
             throw new IllegalStateException("Embedding 输出维度和 RAG 配置不一致，实际 "
@@ -169,25 +277,6 @@ public class QdrantKnowledgeStore {
         }
     }
 
-    //验证集合中相似度搜索算法和维度配置是否一致
-    private void validateCollectionConfig(String body, int dimensions) {
-        try {
-            JsonNode vectors = objectMapper.readTree(body).path("result").path("config").path("params").path("vectors");
-            int actualSize = vectors.path("size").asInt(dimensions);
-            String actualDistance = vectors.path("distance").asText(configuredDistance());
-            if (actualSize != dimensions || !actualDistance.equalsIgnoreCase(configuredDistance())) {
-                throw new IllegalStateException("Qdrant 集合配置和当前 RAG 配置不一致，集合维度="
-                        + actualSize + "，集合算法=" + actualDistance
-                        + "，当前维度=" + dimensions + "，当前算法=" + configuredDistance());
-            }
-        } catch (IllegalStateException e) {
-            throw e;
-        } catch (Exception e) {
-            log.warn("Qdrant collection config check failed, skip strict check", e);
-        }
-    }
-
-    //获取 Embedding 模型
     private EmbeddingModel requireEmbeddingModel() {
         EmbeddingModel model = embeddingModelProvider.getIfAvailable();
         if (model == null) {
@@ -196,7 +285,10 @@ public class QdrantKnowledgeStore {
         return model;
     }
 
-    //去掉末尾的斜杠
+    private String collectionUrl() {
+        return baseUrl() + "/collections/" + properties.getRag().getCollection();
+    }
+
     private String baseUrl() {
         return properties.getRag().getQdrantUrl().replaceAll("/+$", "");
     }

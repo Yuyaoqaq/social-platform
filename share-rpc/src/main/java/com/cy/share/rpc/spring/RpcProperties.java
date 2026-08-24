@@ -28,7 +28,7 @@ public class RpcProperties {
 
     @Data
     public static class RegistryConfig {
-        private String type = "local"; // local | nacos
+        private String type = "nacos"; // local | nacos
         private Nacos  nacos = new Nacos();
 
         @Data

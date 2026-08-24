@@ -39,7 +39,9 @@ public class ExternalTopicSearchTool implements AgentTool {
 
     @Override
     public String description() {
-        return "搜索外部公开网页，补充近期相关主题和内容素材；搜索排名不代表平台真实热度";
+        return "搜索外部公开网页，补充站外近期热点和主题素材（默认百度）。\n"
+                + "什么时候用：用户想了解站外热点、实时话题、公开资讯，或站内检索结果不足需要外部补充时。\n"
+                + "什么时候不用：站内能解决的内容优先用 search_content。";
     }
 
     @Override

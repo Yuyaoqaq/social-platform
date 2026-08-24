@@ -8,6 +8,7 @@ import com.cy.share.service.LogService;
 import com.cy.share.vo.FeedVo;
 import com.cy.share.vo.LikeTop3Vo;
 import com.cy.share.vo.LogDetailVo;
+import com.cy.share.vo.MyContentVo;
 import com.cy.share.vo.SearchFeedVo;
 import lombok.RequiredArgsConstructor;
 import org.apache.dubbo.config.annotation.DubboService;
@@ -37,6 +38,11 @@ public class OpsContentServiceImpl implements OpsContentService {
             safeQuery.setSize(10);
         }
         return logService.queryLogList(safeQuery);
+    }
+
+    @Override
+    public List<MyContentVo> listMyContent(Integer userId, Integer size) {
+        return logService.listMyContent(userId, size);
     }
 
     @Override

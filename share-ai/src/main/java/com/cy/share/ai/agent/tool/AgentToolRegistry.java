@@ -1,5 +1,6 @@
 package com.cy.share.ai.agent.tool;
 
+import com.cy.share.ai.agent.config.AgentProperties;
 import com.cy.share.ai.agent.model.ToolResult;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -21,15 +22,19 @@ public class AgentToolRegistry {
 
     private final Map<String, AgentTool> tools;
     private final ObjectMapper objectMapper;
+    private final AgentProperties properties;
     //name ---> AgentTool实体映射
     //Spring 有个特殊机制：当构造器参数是 List<X>（或 Map<String, X>）时，它会自动收集容器里所有类型为 X 的 Bean，打包成一个集合注入进来。
-    public AgentToolRegistry(List<AgentTool> tools, ObjectMapper objectMapper) {
+    public AgentToolRegistry(List<AgentTool> tools,
+                             ObjectMapper objectMapper,
+                             AgentProperties properties) {
         this.tools = tools.stream().collect(Collectors.toMap(
                 AgentTool::name,
                 Function.identity(),
                 (left, right) -> left,
                 LinkedHashMap::new));
         this.objectMapper = objectMapper;
+        this.properties = properties;
     }
 
     //把自家工具（AgentTool）翻译成 OpenAI 能听懂的外语（API 格式）
@@ -64,6 +69,9 @@ public class AgentToolRegistry {
         }
         if ("generate_image".equals(toolName)) {
             return context.imageGenerationEnabled();
+        }
+        if ("search_xhs_hot_note".equals(toolName)) {
+            return properties.getMcp().isEnabled() && context.webSearchEnabled();
         }
         return true;
     }

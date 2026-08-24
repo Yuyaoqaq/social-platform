@@ -4,9 +4,11 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.cy.share.dto.QueryDto;
 import com.cy.share.dto.ReleaseDto;
 import com.cy.share.mapper.LogPicMapper;
+import com.cy.share.mapper.LogTagMapper;
 import com.cy.share.mapper.UserMapper;
 import com.cy.share.pojo.Log;
 import com.cy.share.pojo.LogPic;
+import com.cy.share.pojo.LogTag;
 import com.cy.share.service.EsSyncProducer;
 import com.cy.share.service.LikeService;
 import com.cy.share.service.LogService;
@@ -18,6 +20,7 @@ import com.cy.share.vo.FeedVo;
 import com.cy.share.vo.LogDetailVo;
 import com.cy.share.vo.LogEditVo;
 import com.cy.share.vo.LogListVo;
+import com.cy.share.vo.MyContentVo;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.dubbo.config.annotation.DubboReference;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,6 +41,8 @@ public class LogServiceImpl extends ServiceImpl<LogMapper, Log>
     LogMapper logMapper;
     @Autowired
     LogPicMapper logPicMapper;
+    @Autowired
+    LogTagMapper logTagMapper;
     @Autowired
     LikeService likeService;
     @Autowired
@@ -77,6 +82,24 @@ public class LogServiceImpl extends ServiceImpl<LogMapper, Log>
         // 最后一条的 createTime 作为下一页游标
         Long nextCursor = list.get(list.size() - 1).getCreateTime().getTime();
         return new FeedVo(list, nextCursor);
+    }
+
+    @Override
+    public List<MyContentVo> listMyContent(Integer userId, Integer size) {
+        if (userId == null || userId <= 0) {
+            return Collections.emptyList();
+        }
+        int limit = size == null ? 10 : Math.min(Math.max(size, 1), 20);
+        List<MyContentVo> list = logMapper.listMyContent(userId, limit);
+        if (list.isEmpty()) {
+            return list;
+        }
+        List<Long> logIds = list.stream().map(v -> v.getId().longValue()).collect(Collectors.toList());
+        Map<Long, List<String>> tagMap = logTagMapper.selectByLogIds(logIds).stream()
+                .collect(Collectors.groupingBy(LogTag::getLogId,
+                        Collectors.mapping(LogTag::getTagName, Collectors.toList())));
+        list.forEach(vo -> vo.setTags(tagMap.getOrDefault(vo.getId().longValue(), new ArrayList<>())));
+        return list;
     }
 
     @Override

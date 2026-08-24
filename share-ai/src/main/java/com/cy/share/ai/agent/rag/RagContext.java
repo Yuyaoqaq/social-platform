@@ -5,7 +5,11 @@ import com.cy.share.ai.agent.model.AgentSource;
 import java.util.List;
 
 /**
- * RAG 检索结果上下文，包含增强后的查询文本、引用来源列表、是否为空和警告信息，供 ReAct 工作流注入 Prompt。
+ * RAG 检索结果上下文。平台规则单独保存，方便放到动态历史和检索结果之前。
  */
-public record RagContext(String augmentedQuery, List<AgentSource> sources, boolean empty, String warning) {
+public record RagContext(String platformRules,
+                         String augmentedQuery,
+                         List<AgentSource> sources,
+                         boolean empty,
+                         String warning) {
 }

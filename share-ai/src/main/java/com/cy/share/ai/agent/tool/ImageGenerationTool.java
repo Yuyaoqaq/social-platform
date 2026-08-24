@@ -40,7 +40,9 @@ public class ImageGenerationTool implements AgentTool {
 
     @Override
     public String description() {
-        return "调用百炼生图模型生成内容配图预览，仅在用户明确要求生成图片时使用";
+        return "调用生图模型生成内容配图。\n"
+                + "什么时候用：仅当用户明确要求生成图片或配图时。\n"
+                + "什么时候不用：用户没有明确要求时不要主动生成；受每日次数限制，不要为纯文本回答擅自配图。";
     }
 
     @Override

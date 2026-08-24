@@ -26,7 +26,8 @@ public class ContentDetailTool implements AgentTool {
 
     @Override
     public String description() {
-        return "根据图文 ID 查询完整标题、正文、作者、图片和点赞信息";
+        return "根据图文 ID 查询完整标题、正文、作者、图片和点赞信息。\n"
+                + "什么时候用：已通过 search_content或者 list_content 拿到具体图文 ID，并且确定高度相关，可以用于创作素材时。需要阅读全文或提取标题、正文、图片url细节时。\n";
     }
 
     // JSON Schema 官方定义

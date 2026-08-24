@@ -9,23 +9,31 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Stream;
 
 /**
- * 知识入库服务，遍历 knowledge 目录中的 Markdown 文件，解析 YAML 头、按标题切分并向量化后写入 Qdrant。
+ * 知识入库服务。
+ * Markdown 中一级标题表示分类，二级标题表示一条独立知识，三级标题属于当前知识内部内容。
  */
 @Service
 @RequiredArgsConstructor
 public class KnowledgeIngestService {
 
+    private static final Set<String> KNOWLEDGE_LIBRARIES = Set.of(
+            "title_materials",
+            "content_materials",
+            "image_materials",
+            "platform_rules",
+            "blog_samples",
+            "style_templates");
+
     private final AgentProperties properties;
     private final QdrantKnowledgeStore knowledgeStore;
 
-    //load文件并插入Qdrant
     public KnowledgeIngestResult reindex() throws IOException {
         Path root = resolveKnowledgeRoot();
         if (!Files.isDirectory(root)) {
@@ -33,10 +41,10 @@ public class KnowledgeIngestService {
         }
 
         List<Path> files;
-        //深度搜索root，过滤出所有的.md/.MD文件
         try (Stream<Path> stream = Files.walk(root)) {
             files = stream.filter(Files::isRegularFile)
-                    .filter(path -> path.getFileName().toString().toLowerCase().endsWith(".md"))
+                    .filter(path -> isKnowledgeContentFile(root, path))
+                    .sorted()
                     .toList();
         }
 
@@ -44,113 +52,139 @@ public class KnowledgeIngestService {
         for (Path file : files) {
             chunks.addAll(loadFile(root, file));
         }
-        int indexed = knowledgeStore.upsert(chunks);
+        int indexed = knowledgeStore.replaceAll(chunks);
         return new KnowledgeIngestResult(files.size(), indexed);
     }
 
-    //给每个md文件都读成List<KnowledgeChunk>
     private List<KnowledgeChunk> loadFile(Path root, Path file) throws IOException {
-        //读取一个 UTF-8 编码的文本文件，并将其内容转换为一个统一换行符、去除首尾空白字符的字符串。
         String raw = Files.readString(file, StandardCharsets.UTF_8)
                 .replace("\r\n", "\n")
                 .trim();
-        ParsedMarkdown parsed = parseFrontMatter(raw);
-        //计算出当前文件相对于知识库根目录的“相对路径”
-        String source = root.relativize(file).toString().replace('\\', '/');
-        Map<String, Object> baseMetadata = new HashMap<>(parsed.metadata());
-        baseMetadata.putIfAbsent("source", "knowledge/" + source);
-        baseMetadata.putIfAbsent("type", "knowledge");
-        baseMetadata.putIfAbsent("version", "1.0");
-        //按标题切分内容
-        List<String> sections = splitByHeading(parsed.content());
+        String content = stripFrontMatter(raw);
+        Path relativePath = root.relativize(file);
+        String library = relativePath.getName(0).toString();
+
+        // 平台规则每次固定注入，不参与相似度检索。
+        if ("platform_rules".equals(library)) {
+            return List.of();
+        }
+
+        String contentId = relativePath.getNameCount() == 2
+                ? fileNameWithoutExtension(relativePath.getFileName().toString())
+                : relativePath.getName(1).toString();
+        List<RecordBlock> records = splitIntoRecords(content);
         List<KnowledgeChunk> chunks = new ArrayList<>();
-        int index = 0;
-        for (String section : sections) {
-            //再切分长内容为小块
-            for (String piece : splitLongText(section)) {
+
+        int recordIndex = 0;
+        for (RecordBlock record : records) {
+            int pieceIndex = 0;
+            for (String piece : splitLongText(record.content())) {
                 if (piece.isBlank()) {
                     continue;
                 }
-                String rawId = source + "#" + index++;
+                String rawId = library + "/" + contentId + "/" + recordIndex + "#" + pieceIndex++;
                 String id = UUID.nameUUIDFromBytes(rawId.getBytes(StandardCharsets.UTF_8)).toString();
-                Map<String, Object> metadata = new HashMap<>(baseMetadata);
-                metadata.put("chunkIndex", index - 1);
+                Map<String, Object> metadata = Map.of(
+                        "library", library,
+                        "category", record.category());
                 chunks.add(new KnowledgeChunk(id, piece.trim(), metadata));
             }
+            recordIndex++;
         }
         return chunks;
     }
-    //读取md中开头元数据部分。并提纯内容
-    private ParsedMarkdown parseFrontMatter(String raw) {
-        if (!raw.startsWith("---\n")) {
-            return new ParsedMarkdown(Map.of(), raw);
-        }
-        //从raw的第4个字符开始，找\n---\n
-        int end = raw.indexOf("\n---\n", 4);
-        if (end < 0) {
-            return new ParsedMarkdown(Map.of(), raw);
-        }
-        Map<String, Object> metadata = new HashMap<>();
-        String frontMatter = raw.substring(4, end);
-        //一行就是一个key ： value
-        for (String line : frontMatter.split("\n")) {
-            int colon = line.indexOf(':');
-            if (colon <= 0) {
+
+    private List<RecordBlock> splitIntoRecords(String content) {
+        List<RecordBlock> records = new ArrayList<>();
+        String category = "未分类";
+        StringBuilder current = null;
+
+        for (String line : content.split("\n", -1)) {
+            if (line.startsWith("# ")) {
+                addRecord(records, category, current);
+                current = null;
+                category = line.substring(2).trim();
                 continue;
             }
-            String key = line.substring(0, colon).trim();
-            String value = line.substring(colon + 1).trim();
-            //value是数组，用逗号分隔
-            if (value.startsWith("[") && value.endsWith("]")) {
-                String inner = value.substring(1, value.length() - 1);
-                metadata.put(key, Stream.of(inner.split(","))
-                        .map(String::trim).filter(s -> !s.isEmpty()).toList());
-            } else {
-                metadata.put(key, value);
+            if (line.startsWith("## ")) {
+                addRecord(records, category, current);
+                current = new StringBuilder(line.substring(3).trim()).append('\n');
+                continue;
+            }
+            if (current != null) {
+                if (line.startsWith("### ")) {
+                    current.append(line.substring(4).trim()).append("：\n");
+                } else {
+                    current.append(line).append('\n');
+                }
             }
         }
-        return new ParsedMarkdown(metadata, raw.substring(end + 5).trim());
+        addRecord(records, category, current);
+
+        if (records.isEmpty() && !content.isBlank()) {
+            records.add(new RecordBlock(category, content.trim()));
+        }
+        return records;
     }
 
-    //按标题切分内容String session，以#开头为标题
-    private List<String> splitByHeading(String content) {
-        List<String> sections = new ArrayList<>();
-        StringBuilder current = new StringBuilder();
-        for (String line : content.split("\n")) {
-            if (line.startsWith("#") && !current.isEmpty()) {
-                sections.add(current.toString());
-                //清空
-                current.setLength(0);
-            }
-            current.append(line).append('\n');
+    private void addRecord(List<RecordBlock> records, String category, StringBuilder current) {
+        if (current != null && !current.toString().isBlank()) {
+            records.add(new RecordBlock(category, current.toString().trim()));
         }
-        if (!current.isEmpty()) {
-            sections.add(current.toString());
-        }
-        return sections;
     }
 
-    //滑动窗口将长session按chunksize切分，考虑overlap
     private List<String> splitLongText(String text) {
         int chunkSize = Math.max(300, properties.getRag().getChunkSize());
         int overlap = Math.max(0, Math.min(properties.getRag().getChunkOverlap(), chunkSize / 3));
         if (text.length() <= chunkSize) {
             return List.of(text);
         }
+
         List<String> result = new ArrayList<>();
         int start = 0;
         while (start < text.length()) {
             int end = Math.min(text.length(), start + chunkSize);
+            if (end < text.length()) {
+                int paragraphEnd = text.lastIndexOf("\n\n", end);
+                if (paragraphEnd > start + chunkSize / 2) {
+                    end = paragraphEnd;
+                }
+            }
             result.add(text.substring(start, end));
             if (end == text.length()) {
                 break;
             }
-            start = end - overlap;
+            start = Math.max(start + 1, end - overlap);
         }
         return result;
     }
 
-    //配置目录找不到，回退到找当前目录找一下有没有
+    private boolean isKnowledgeContentFile(Path root, Path file) {
+        Path relativePath = root.relativize(file);
+        if (relativePath.getNameCount() < 2
+                || !KNOWLEDGE_LIBRARIES.contains(relativePath.getName(0).toString())) {
+            return false;
+        }
+        boolean librarySource = relativePath.getNameCount() == 2
+                && "source.md".equalsIgnoreCase(relativePath.getFileName().toString());
+        boolean independentContent = relativePath.getNameCount() == 3
+                && "content.md".equalsIgnoreCase(relativePath.getFileName().toString());
+        return librarySource || independentContent;
+    }
+
+    private String stripFrontMatter(String raw) {
+        if (!raw.startsWith("---\n")) {
+            return raw;
+        }
+        int end = raw.indexOf("\n---\n", 4);
+        return end < 0 ? raw : raw.substring(end + 5).trim();
+    }
+
+    private String fileNameWithoutExtension(String fileName) {
+        int dot = fileName.lastIndexOf('.');
+        return dot > 0 ? fileName.substring(0, dot) : fileName;
+    }
+
     private Path resolveKnowledgeRoot() {
         Path configured = Path.of(properties.getRag().getKnowledgePath()).normalize();
         if (Files.isDirectory(configured)) {
@@ -160,6 +194,6 @@ public class KnowledgeIngestService {
         return Files.isDirectory(rootCandidate) ? rootCandidate : configured;
     }
 
-    private record ParsedMarkdown(Map<String, Object> metadata, String content) {
+    private record RecordBlock(String category, String content) {
     }
 }

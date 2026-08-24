@@ -3,11 +3,14 @@ package com.cy.share.ai.agent.service;
 import com.cy.share.ai.agent.memory.AiConversation;
 import com.cy.share.ai.agent.memory.ConversationMemoryService;
 import com.cy.share.ai.agent.memory.MemoryContext;
+import com.cy.share.ai.agent.memory.SemanticMemoryService;
 import com.cy.share.ai.agent.model.AgentAnswer;
 import com.cy.share.ai.agent.model.AgentChatRequest;
 import com.cy.share.ai.agent.model.AgentTokenUsage;
 import com.cy.share.ai.agent.rag.RagContext;
 import com.cy.share.ai.agent.rag.RagRetrievalService;
+import com.cy.share.ai.agent.routing.ModelRouteDecision;
+import com.cy.share.ai.agent.routing.PythonModelRouter;
 import com.cy.share.ai.agent.tool.ToolExecutionContext;
 import com.cy.share.ai.agent.workflow.AgentEventPublisher;
 import com.cy.share.ai.agent.workflow.ReActResult;
@@ -29,6 +32,8 @@ import java.util.List;
 public class OpsAgentService {
 
     private final ConversationMemoryService memoryService;
+    private final SemanticMemoryService semanticMemoryService;
+    private final PythonModelRouter modelRouter;
     private final RagRetrievalService ragRetrievalService;
     private final ReActToolWorkflow reActToolWorkflow;
     private final ObjectMapper objectMapper;
@@ -37,17 +42,30 @@ public class OpsAgentService {
         //events是函数式接口的实例，lambda表达式是方法体，publish是方法名。
         //此处等价于send(emitter,"workflow_started",WorkflowState.RECEIVED);
         events.publish("workflow_started", WorkflowState.RECEIVED);
+        ModelRouteDecision modelRoute = modelRouter.route(request.getMessage());
+        events.publish("model_routed", java.util.Map.of(
+                "intent", modelRoute.intent(),
+                "simple", modelRoute.simple(),
+                "complexityScore", modelRoute.complexityScore(),
+                "model", modelRoute.model(),
+                "maxTokens", modelRoute.maxTokens(),
+                "requiresTools", modelRoute.requiresTools(),
+                "fallback", modelRoute.fallback()));
         events.publish("workflow_state", WorkflowState.MEMORY);
         long memoryStarted = System.nanoTime();
         AiConversation conversation = memoryService.open(userId, request.getConversationId(), request.getMessage());
+        // 先处理可能已达到 token 阈值的旧记忆，再装载本轮上下文
+        memoryService.summarizeIfNeeded(conversation.getId(), userId);
         // 加载对话记忆
         MemoryContext memory = memoryService.load(conversation.getId(), userId);
+        String semanticMemory = semanticMemoryService.load(userId, conversation.getId());
         // 保存用户消息
         memoryService.saveMessage(conversation.getId(), userId, "USER", request.getMessage());
         events.publish("memory_completed", java.util.Map.of(
                 "durationMs", elapsedMs(memoryStarted),
                 "recentMessages", memory.recentMessages().size(),
-                "hasSummary", memory.summary() != null && !memory.summary().isBlank()));
+                "hasSummary", memory.summary() != null && !memory.summary().isBlank(),
+                "hasSemanticMemory", !semanticMemory.isBlank()));
 
         events.publish("workflow_state", WorkflowState.RETRIEVING);
         long ragStarted = System.nanoTime();
@@ -65,7 +83,8 @@ public class OpsAgentService {
                 request.isEnableImageGeneration());
         // 开启ReAct工具循环
         ReActResult reAct = reActToolWorkflow.execute(
-                request.getMessage(), memory, rag, toolContext, events);
+                request.getMessage(), memory, semanticMemory, rag, toolContext,
+                modelRoute.model(), modelRoute.maxTokens(), events);
 
         events.publish("workflow_state", WorkflowState.FORMATTING);
         long formattingStarted = System.nanoTime();
@@ -88,6 +107,8 @@ public class OpsAgentService {
         long persistStarted = System.nanoTime();
         memoryService.saveToolCalls(conversation.getId(), userId, reAct.toolCalls());
         memoryService.saveMessage(conversation.getId(), userId, "ASSISTANT", write(answer));
+        semanticMemoryService.remember(
+                userId, conversation.getId(), request.getMessage(), write(answer), modelRoute.model());
         memoryService.summarizeIfNeeded(conversation.getId(), userId);
         events.publish("persistence_completed", java.util.Map.of("durationMs", elapsedMs(persistStarted)));
         events.publish("workflow_completed", answer);

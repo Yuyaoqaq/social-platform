@@ -78,25 +78,53 @@ agent:
   max-tool-steps: 5
   # 工具调用超时时间（秒）
   tool-timeout-seconds: 10
-  # 保留最近的完整问答轮数
-  recent-rounds: 10
-  # 至少达到该消息数后，才增量摘要更早的对话
-  summary-threshold: 21
+  # Agent 使用的上下文 token 预算，不等同于模型输出 token 上限
+  max-context-tokens: ${AGENT_MAX_CONTEXT_TOKENS:32768}
+  # 未压缩记忆达到预算的 50% 时触发摘要
+  memory-compress-ratio: ${AGENT_MEMORY_COMPRESS_RATIO:0.5}
   # 每分钟速率限制次数
   rate-limit-per-minute: 20
   # 每天图片生成限制次数
   image-limit-per-day: 5
+  # Python 意图识别和模型路由
+  routing:
+    enabled: ${AGENT_ROUTING_ENABLED:true}
+    python-command: ${PYTHON_COMMAND:python}
+    script-path: ${AGENT_ROUTER_SCRIPT:bailian_router.py}
+    timeout-seconds: ${AGENT_ROUTING_TIMEOUT_SECONDS:3}
+    simple-model: ${AGENT_SIMPLE_MODEL:qwen-turbo}
+    complex-model: ${AGENT_COMPLEX_MODEL:qwen3.7-plus}
+    simple-max-tokens: ${BAILIAN_SIMPLE_MAX_TOKENS:512}
+    complex-max-tokens: ${BAILIAN_COMPLEX_MAX_TOKENS:2048}
+  # MEMORY.md 语义记忆：按用户、会话隔离
+  semantic-memory:
+    enabled: ${SEMANTIC_MEMORY_ENABLED:true}
+    storage-path: ${SEMANTIC_MEMORY_PATH:../semantic-memory}
+    template-path: ${SEMANTIC_MEMORY_TEMPLATE_PATH:../MEMORY.md}
+    max-chars: ${SEMANTIC_MEMORY_MAX_CHARS:8000}
+  # 本地小红书 MCP（stdio）
+  mcp:
+    enabled: ${XHS_MCP_ENABLED:true}
+    node-command: ${NODE_COMMAND:node}
+    project-path: ${XHS_MCP_PROJECT_PATH:D:/JAVAfilesAll/cyymcp}
+    server-script: ${XHS_MCP_SERVER_SCRIPT:dist/index.js}
+    timeout-seconds: ${XHS_MCP_TIMEOUT_SECONDS:120}
+    # false 会显示浏览器，方便处理登录或验证码
+    headless: ${XHS_MCP_HEADLESS:false}
+    download-images: ${XHS_MCP_DOWNLOAD_IMAGES:true}
+    output-dir: ${XHS_MCP_OUTPUT_DIR:}
   rag:
     enabled: ${AGENT_RAG_ENABLED:true}
     auto-index: ${AGENT_RAG_AUTO_INDEX:false}
     knowledge-path: ${KNOWLEDGE_PATH:../knowledge}
     qdrant-url: ${QDRANT_URL:http://192.168.175.18:6333}
-    collection: ${QDRANT_COLLECTION:share_operation_knowledge}
+    collection: ${QDRANT_COLLECTION:share_operation_knowledge_v2}
     # 向量维度：默认 1024，支持 256~2560，需和 embedding 模型输出一致
     vector-size: ${QDRANT_VECTOR_SIZE:1024}
     # 相似度算法：文本语义检索默认用 Cosine
     distance: ${QDRANT_DISTANCE:Cosine}
-    top-k: 5
+    # 语义和关键词两路各自先召回的候选数量
+    hybrid-candidate-k: 20
     chunk-size: 1200
     chunk-overlap: 120
   web-search:

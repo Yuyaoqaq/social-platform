@@ -31,7 +31,7 @@ public class NotificationServiceImpl implements NotificationService {
     private final ConcurrentHashMap<String, LikeWindow> windows = new ConcurrentHashMap<>();
     private final ThreadPoolTaskScheduler taskScheduler;
 
-    private static final long COOLDOWN_SECONDS = 10;
+    private static final long COOLDOWN_SECONDS = 2 * 60 * 60;
 
     @Override
     public void onLike(Integer likerId, Integer logId) {

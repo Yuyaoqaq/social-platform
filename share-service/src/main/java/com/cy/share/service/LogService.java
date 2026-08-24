@@ -7,6 +7,9 @@ import com.cy.share.pojo.Log;
 import com.cy.share.vo.FeedVo;
 import com.cy.share.vo.LogDetailVo;
 import com.cy.share.vo.LogEditVo;
+import com.cy.share.vo.MyContentVo;
+
+import java.util.List;
 
 /**
 * @author 21701
@@ -16,6 +19,8 @@ import com.cy.share.vo.LogEditVo;
 public interface LogService extends IService<Log> {
 
     FeedVo queryLogList(QueryDto query);
+
+    List<MyContentVo> listMyContent(Integer userId, Integer size);
 
     boolean add(ReleaseDto dto);
 

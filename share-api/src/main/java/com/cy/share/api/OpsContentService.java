@@ -4,6 +4,7 @@ import com.cy.share.dto.QueryDto;
 import com.cy.share.vo.FeedVo;
 import com.cy.share.vo.LikeTop3Vo;
 import com.cy.share.vo.LogDetailVo;
+import com.cy.share.vo.MyContentVo;
 import com.cy.share.vo.SearchFeedVo;
 
 import java.util.List;
@@ -13,6 +14,8 @@ public interface OpsContentService {
     SearchFeedVo searchContent(String keyword, String cursor, int size, List<String> tags);
 
     FeedVo listContent(QueryDto query);
+
+    List<MyContentVo> listMyContent(Integer userId, Integer size);
 
     LogDetailVo getContentDetail(Integer logId);
 

@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.cy.share.vo.LogDetailVo;
 import com.cy.share.vo.LogEditVo;
 import com.cy.share.vo.LogListVo;
+import com.cy.share.vo.MyContentVo;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.Date;
@@ -20,6 +21,8 @@ import java.util.List;
 public interface LogMapper extends BaseMapper<Log> {
 
     List<LogListVo> queryLogList(@Param("cursor") Date cursor, @Param("size") Integer size, @Param("key") String key);
+
+    List<MyContentVo> listMyContent(@Param("userId") Integer userId, @Param("size") Integer size);
 
     boolean add(Log log);
 

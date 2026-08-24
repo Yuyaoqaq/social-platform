@@ -70,6 +70,17 @@
         LIMIT #{size}
     </select>
 
+    <select id="listMyContent" resultType="com.cy.share.vo.MyContentVo">
+        SELECT
+            l.id, l.title, l.info, l.create_time AS createTime
+        FROM log l
+        LEFT JOIN user u ON l.author = u.name
+        WHERE l.deleted = 1
+          AND u.id = #{userId}
+        ORDER BY l.create_time DESC
+        LIMIT #{size}
+    </select>
+
     <select id="findById" resultType="com.cy.share.vo.LogDetailVo">
         SELECT
             l.title,

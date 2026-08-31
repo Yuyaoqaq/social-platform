@@ -4,7 +4,7 @@
 
 ## 1.项目结构
 
-![项目结构](https://health-plat.oss-cn-beijing.aliyuncs.com/%E9%A1%B9%E7%9B%AE%E7%BB%93%E6%9E%84.png)
+![项目结构](https://health-plat.oss-cn-beijing.aliyuncs.com/%E9%A1%B9%E7%9B%AE%E7%BB%93%E6%9E%842.png)
 
 ## 2.RPC 工具流程
 

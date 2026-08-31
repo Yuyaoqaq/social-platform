@@ -3,7 +3,8 @@
 涵盖feed流无限滚动，多图文发布，点赞❤️互动等功能，2.0版本ai🔥创作，不仅有idea！还懂你～🎊让产品/偶像/游戏运营工作者们work更轻松！
 
 ## 1.项目结构
-![项目结构](https://health-plat.oss-cn-beijing.aliyuncs.com/screenshot-%E9%A1%B9%E7%9B%AE%E7%BB%93%E6%9E%84.png)
+
+![项目结构](https://health-plat.oss-cn-beijing.aliyuncs.com/%E9%A1%B9%E7%9B%AE%E7%BB%93%E6%9E%84.png)
 
 ## 2.RPC 工具流程
 
